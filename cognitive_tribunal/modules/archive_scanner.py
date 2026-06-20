@@ -18,6 +18,17 @@ class ArchiveScanner:
     Scans file archives and provides classification and deduplication.
     Supports local file systems, network drives, and common cloud storage mounts.
     """
+
+    # Security: Critical system paths that should never be scanned
+    UNSAFE_PATHS_POSIX = {
+        '/', '/etc', '/var', '/proc', '/sys', '/dev',
+        '/boot', '/usr', '/bin', '/sbin'
+    }
+
+    UNSAFE_PATHS_NT = {
+        'C:\\', 'C:\\Windows', 'C:\\Program Files',
+        'C:\\Program Files (x86)', 'C:\\Windows\\System32'
+    }
     
     def __init__(self, exclude_patterns: Optional[List[str]] = None):
         """
@@ -58,6 +69,51 @@ class ArchiveScanner:
                 return True
         
         return False
+
+    def is_unsafe_path(self, path: Path) -> bool:
+        """
+        Check if the path is a critical system directory or root.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            bool: True if path is considered unsafe to scan
+        """
+        # Resolve to absolute path to catch symlinks/relative paths
+        try:
+            abs_path = path.resolve()
+        except OSError:
+            # If we can't resolve it, it's safer to block it if it looks suspicious
+            abs_path = path
+
+        path_str = str(abs_path)
+
+        if os.name == 'nt':
+            # Windows checks
+            # Block scanning the root of the drive (e.g. C:\)
+            if abs_path.anchor == path_str:
+                return True
+
+            # Check against unsafe list (case-insensitive)
+            path_upper = path_str.upper()
+            for unsafe in self.UNSAFE_PATHS_NT:
+                if path_upper == unsafe.upper() or \
+                   path_upper.startswith(unsafe.upper() + os.sep):
+                    return True
+        else:
+            # POSIX checks
+            # Block scanning the filesystem root
+            if path_str == '/':
+                return True
+
+            # Check against unsafe list
+            # We want to match /etc and /etc/subdir, but not /etc_backup
+            for unsafe in self.UNSAFE_PATHS_POSIX:
+                if path_str == unsafe or path_str.startswith(unsafe + os.sep):
+                    return True
+
+        return False
     
     def scan_directory(self, root_path: str, recursive: bool = True, max_depth: Optional[int] = None) -> Dict:
         """
@@ -73,6 +129,10 @@ class ArchiveScanner:
         """
         root = Path(root_path).resolve()
         
+        # Security check: Prevent scanning critical system paths
+        if self.is_unsafe_path(root):
+            return {'error': f"Unsafe path detected. Scanning of '{root}' is blocked for security reasons."}
+
         if not root.exists():
             return {'error': f"Path does not exist: {root_path}"}
         
