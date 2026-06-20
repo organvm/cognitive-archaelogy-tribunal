@@ -19,6 +19,17 @@ class ArchiveScanner:
     Supports local file systems, network drives, and common cloud storage mounts.
     """
     
+    # Security: Block scanning of critical system directories
+    UNSAFE_PATHS_POSIX = {
+        '/', '/proc', '/sys', '/dev', '/run', '/var', '/etc',
+        '/usr', '/bin', '/sbin', '/lib', '/lib64', '/boot'
+    }
+
+    UNSAFE_PATHS_NT = {
+        'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)',
+        'C:\\Users\\Default', 'C:\\System Volume Information'
+    }
+
     def __init__(self, exclude_patterns: Optional[List[str]] = None):
         """
         Initialize the archive scanner.
@@ -59,6 +70,46 @@ class ArchiveScanner:
         
         return False
     
+    def is_unsafe_path(self, path: Path) -> bool:
+        """
+        Check if a path is considered unsafe to scan (e.g. system roots).
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if path is unsafe, False otherwise
+        """
+        path_str = str(path)
+
+        # Check against unsafe lists based on OS
+        if os.name == 'nt':
+            # Windows checks
+            # Check for drive root (e.g. C:\)
+            if path.anchor == str(path):
+                return True
+
+            # Check system dirs
+            for unsafe in self.UNSAFE_PATHS_NT:
+                # Case-insensitive check for Windows paths
+                if path_str.lower().startswith(unsafe.lower()):
+                    # Ensure we are matching a full directory name
+                    # e.g. match C:\Windows but not C:\WindowsOld
+                    if len(path_str) == len(unsafe) or path_str[len(unsafe)] == os.sep:
+                        return True
+        else:
+            # POSIX checks
+            # Check for root
+            if path_str == '/':
+                return True
+
+            # Check system dirs
+            for unsafe in self.UNSAFE_PATHS_POSIX:
+                if path_str == unsafe or path_str.startswith(unsafe + '/'):
+                    return True
+
+        return False
+
     def scan_directory(self, root_path: str, recursive: bool = True, max_depth: Optional[int] = None) -> Dict:
         """
         Scan a directory and classify all files.
@@ -79,6 +130,9 @@ class ArchiveScanner:
         if not root.is_dir():
             return {'error': f"Path is not a directory: {root_path}"}
         
+        if self.is_unsafe_path(root):
+            return {'error': f"Unsafe path blocked: {root_path} (System directory or Root)"}
+
         print(f"Scanning directory: {root}")
         self.scanned_files = []
         self.deduplicator = Deduplicator()
