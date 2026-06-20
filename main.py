@@ -25,6 +25,51 @@ from cognitive_tribunal.outputs.triage_report import TriageReportGenerator
 
 def main():
     """Main entry point for the CLI."""
+    # Empty State: Display welcome panel if no arguments provided
+    if len(sys.argv) == 1:
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+            from rich.table import Table
+            from rich import box
+
+            console = Console()
+
+            # Title and Description
+            console.print()
+            console.print("[bold cyan]🏛️  Cognitive Archaeology Tribunal[/bold cyan]", justify="center")
+            console.print("[dim]Comprehensive Digital Archaeology & Organization Tool[/dim]", justify="center")
+            console.print()
+
+            # Usage Table
+            table = Table(box=box.ROUNDED, show_header=True, header_style="bold magenta", expand=True)
+            table.add_column("Action", style="cyan")
+            table.add_column("Command Example", style="green")
+
+            table.add_row("📂 Scan Archives", "python main.py --scan-archives ./data")
+            table.add_row("🤖 Analyze AI Chat", "python main.py --ai-conversations ./chatgpt_export")
+            table.add_row("👤 Audit User Repos", "python main.py --personal-repos myusername")
+            table.add_row("🏢 Audit Org Repos", "python main.py --org-repos myorgname")
+            table.add_row("🔖 Check Bookmarks", "python main.py --web-bookmarks bookmarks.html")
+
+            panel = Panel(
+                table,
+                title="[bold yellow]Quick Start Guide[/bold yellow]",
+                border_style="blue",
+                padding=(1, 2),
+            )
+
+            console.print(panel)
+            console.print("[dim]Run [bold]python main.py --help[/bold] for full documentation[/dim]", justify="center")
+            console.print()
+            sys.exit(0)
+        except ImportError:
+            # Fallback if rich is not installed
+            print("\nCognitive Archaeology Tribunal")
+            print("==============================")
+            print("Run with --help for usage information.\n")
+            sys.exit(0)
+
     parser = argparse.ArgumentParser(
         description='Cognitive Archaeology Tribunal - Comprehensive digital archaeology tool',
         formatter_class=argparse.RawDescriptionHelpFormatter,
