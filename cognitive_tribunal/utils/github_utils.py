@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import os
 
+from .logging_utils import get_audit_logger
+
 try:
     from github import Github, Repository, GithubException
     from github.Repository import Repository as RepoType
@@ -53,7 +55,7 @@ class GitHubClient:
             
             return list(user.get_repos())
         except GithubException as e:
-            print(f"Error fetching user repos: {e}")
+            get_audit_logger().error("Error fetching user repos: %s", e)
             return []
     
     def get_org_repos(self, org_name: str) -> List[RepoType]:
@@ -70,7 +72,7 @@ class GitHubClient:
             org = self.client.get_organization(org_name)
             return list(org.get_repos())
         except GithubException as e:
-            print(f"Error fetching org repos: {e}")
+            get_audit_logger().error("Error fetching org repos: %s", e)
             return []
     
     def get_repo_details(self, repo: RepoType) -> Dict:
@@ -172,7 +174,7 @@ class GitHubClient:
             
             return commit_list
         except Exception as e:
-            print(f"Error fetching commits: {e}")
+            get_audit_logger().error("Error fetching commits: %s", e)
             return []
     
     def get_repo_dependencies(self, repo: RepoType) -> Dict[str, List[str]]:

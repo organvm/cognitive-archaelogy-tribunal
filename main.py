@@ -26,6 +26,7 @@ from cognitive_tribunal.modules.web_bookmark_analyzer import WebBookmarkAnalyzer
 from cognitive_tribunal.outputs.inventory import InventoryGenerator
 from cognitive_tribunal.outputs.knowledge_graph import KnowledgeGraphGenerator
 from cognitive_tribunal.outputs.triage_report import TriageReportGenerator
+from cognitive_tribunal.utils.logging_utils import get_audit_logger
 
 console = Console()
 
@@ -147,8 +148,9 @@ def main():
                     json.dump(repo_results, f, indent=2)
 
                 console.print(f"[green]✓ Personal repo analysis complete.[/green] Analyzed {repo_results.get('stats', {}).get('total_repos', 0)} repositories")
-            except Exception as e:
-                console.print(f"[red]✗ Error analyzing personal repos: {e}[/red]")
+            except Exception:
+                get_audit_logger().exception("Error analyzing personal repos")
+                console.print("[red]✗ Error analyzing personal repos (details in audit.log)[/red]")
     
     # Module 4: Org Repo Analyzer
     if args.org_repos:
@@ -164,8 +166,9 @@ def main():
                     json.dump(org_results, f, indent=2)
 
                 console.print(f"[green]✓ Org repo analysis complete.[/green] Analyzed {org_results.get('stats', {}).get('total_repos', 0)} repositories")
-            except Exception as e:
-                console.print(f"[red]✗ Error analyzing org repos: {e}[/red]")
+            except Exception:
+                get_audit_logger().exception("Error analyzing org repos")
+                console.print("[red]✗ Error analyzing org repos (details in audit.log)[/red]")
     
     # Module 5: Web Bookmark Analyzer
     if args.web_bookmarks:
