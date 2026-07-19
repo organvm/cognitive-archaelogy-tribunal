@@ -46,7 +46,7 @@ python main.py [OPTIONS]
 - `--personal-repos USERNAME` - Analyze personal GitHub repos
 - `--org-repos ORGNAME` - Analyze organization repos
 - `--web-bookmarks PATH` - Analyze web bookmarks from an export file
-- `--github-token TOKEN` - GitHub token (or use GITHUB_TOKEN env var)
+- GitHub authentication is read from the `GITHUB_TOKEN` environment variable (e.g. `export GITHUB_TOKEN=ghp_xxx`). Passing a token as a CLI argument is intentionally unsupported — process arguments are visible in shell history and `ps` output.
 - `--output-dir DIR` - Output directory (default: ./output)
 - `--no-inventory` - Skip inventory generation
 - `--no-graph` - Skip knowledge graph generation

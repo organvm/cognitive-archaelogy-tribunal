@@ -289,10 +289,10 @@ When passing to next session:
 
 ### Run Repository Analysis
 ```bash
+# GITHUB_TOKEN is read from the environment (export GITHUB_TOKEN=ghp_xxx)
 python main.py \
   --personal-repos 4444JPP \
   --org-repos ivi374forivi \
-  --github-token $GITHUB_TOKEN \
   --output-dir ./output/repos
 ```
 

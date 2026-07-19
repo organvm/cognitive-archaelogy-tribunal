@@ -98,13 +98,10 @@ export GITHUB_TOKEN="ghp_xxx"
 python main.py --personal-repos 4444JPP --output-dir ./output/personal
 ```
 
-### Method 2: Command Line Argument
-```bash
-python main.py \
-  --personal-repos 4444JPP \
-  --github-token "ghp_xxx" \
-  --output-dir ./output/personal
-```
+### Method 2: Command Line Argument (removed)
+Passing the token as a `--github-token` CLI argument is intentionally **no longer supported**:
+process arguments are visible in shell history and to any user via `ps`, which leaks the token.
+Use the `GITHUB_TOKEN` environment variable (Method 1) instead.
 
 ### Method 3: Configuration File
 ```yaml

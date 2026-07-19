@@ -29,8 +29,14 @@ from cognitive_tribunal.outputs.triage_report import TriageReportGenerator
 
 console = Console()
 
-def main():
-    """Main entry point for the CLI."""
+def build_parser():
+    """Construct the CLI argument parser.
+
+    Extracted from ``main()`` so the argument surface is unit-testable. Note the
+    absence of a ``--github-token`` flag: GitHub authentication is read from the
+    ``GITHUB_TOKEN`` environment variable (resolved in ``GitHubClient``) because
+    process arguments leak into shell history and ``ps`` output.
+    """
     parser = argparse.ArgumentParser(
         description='Cognitive Archaeology Tribunal - Comprehensive digital archaeology tool',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -42,10 +48,10 @@ Examples:
   # Scan archives only
   python main.py --scan-archives /path/to/archives --output-dir ./output
   
-  # Analyze personal repos
+  # Analyze personal repos (set GITHUB_TOKEN in the environment first)
   python main.py --personal-repos username --output-dir ./output
   
-  # Analyze org repos
+  # Analyze org repos (set GITHUB_TOKEN in the environment first)
   python main.py --org-repos orgname --output-dir ./output
   
   # Load AI conversations
@@ -62,12 +68,17 @@ Examples:
     parser.add_argument('--web-bookmarks', metavar='PATH', help='Analyze web bookmarks from an export file')
     
     # Configuration
-    parser.add_argument('--github-token', help='GitHub personal access token (or use GITHUB_TOKEN env var)')
     parser.add_argument('--output-dir', default='./output', help='Output directory (default: ./output)')
     parser.add_argument('--no-inventory', action='store_true', help='Skip inventory generation')
     parser.add_argument('--no-graph', action='store_true', help='Skip knowledge graph generation')
     parser.add_argument('--no-triage', action='store_true', help='Skip triage report generation')
-    
+
+    return parser
+
+
+def main():
+    """Main entry point for the CLI."""
+    parser = build_parser()
     args = parser.parse_args()
     
     # Validate arguments
@@ -126,7 +137,7 @@ Examples:
     if args.personal_repos:
         with console.status("[bold cyan]Running Personal Repo Analyzer...", spinner="dots"):
             try:
-                analyzer = PersonalRepoAnalyzer(args.github_token)
+                analyzer = PersonalRepoAnalyzer(os.environ.get('GITHUB_TOKEN'))
                 repo_results = analyzer.analyze_user_repos(args.personal_repos)
                 results['personal_repos'] = repo_results
 
@@ -143,7 +154,7 @@ Examples:
     if args.org_repos:
         with console.status("[bold cyan]Running Org Repo Analyzer...", spinner="dots"):
             try:
-                analyzer = OrgRepoAnalyzer(args.github_token)
+                analyzer = OrgRepoAnalyzer(os.environ.get('GITHUB_TOKEN'))
                 org_results = analyzer.analyze_org_repos(args.org_repos)
                 results['org_repos'] = org_results
 
