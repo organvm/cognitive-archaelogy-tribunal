@@ -18,7 +18,19 @@ class ArchiveScanner:
     Scans file archives and provides classification and deduplication.
     Supports local file systems, network drives, and common cloud storage mounts.
     """
-    
+
+    # Sensitive roots the scanner must never descend into. Blocking these prevents
+    # accidental information disclosure, resource exhaustion, and symlink-based path
+    # traversal into system/credential locations (distilled from the Sentinel PR
+    # cluster: #16, #21, #28, #30, #38, #42, #51, #54, #57, #64, #67, #71, #73,
+    # #111, #113). Legitimate archive locations like /tmp and /var are intentionally
+    # NOT blocked. Absolute POSIX roots; user credential dirs are added at runtime.
+    _UNSAFE_SYSTEM_ROOTS = (
+        '/etc', '/proc', '/sys', '/boot', '/dev', '/run',
+        '/private/etc', '/private/var/db',
+    )
+    _UNSAFE_HOME_SUBDIRS = ('.ssh', '.aws', '.gnupg', '.config/gcloud', '.kube')
+
     def __init__(self, exclude_patterns: Optional[List[str]] = None):
         """
         Initialize the archive scanner.
@@ -44,7 +56,46 @@ class ArchiveScanner:
             'by_category': {},
             'errors': [],
         }
-    
+
+    @classmethod
+    def _unsafe_scan_roots(cls) -> List[Path]:
+        """Resolved set of sensitive directories that must never be scanned."""
+        roots: List[Path] = []
+        for raw in cls._UNSAFE_SYSTEM_ROOTS:
+            try:
+                roots.append(Path(raw).resolve())
+            except (OSError, RuntimeError):
+                continue
+        try:
+            home = Path.home()
+        except (OSError, RuntimeError):
+            home = None
+        if home is not None:
+            for sub in cls._UNSAFE_HOME_SUBDIRS:
+                try:
+                    roots.append((home / sub).resolve())
+                except (OSError, RuntimeError):
+                    continue
+        return roots
+
+    def is_safe_scan_target(self, path) -> bool:
+        """
+        Return False for the filesystem root or any sensitive system/credential
+        directory (or a path contained within one), True otherwise. Resolving the
+        path first neutralizes symlink-based traversal into a blocked location.
+        """
+        try:
+            resolved = Path(path).resolve()
+        except (OSError, RuntimeError):
+            return False
+        # Never scan the filesystem root itself.
+        if resolved == Path(resolved.anchor):
+            return False
+        for unsafe in self._unsafe_scan_roots():
+            if resolved == unsafe or unsafe in resolved.parents:
+                return False
+        return True
+
     def should_exclude(self, path: Path) -> bool:
         """Check if a path should be excluded."""
         path_str = str(path)
@@ -79,6 +130,9 @@ class ArchiveScanner:
         if not root.is_dir():
             return {'error': f"Path is not a directory: {root_path}"}
         
+        if not self.is_safe_scan_target(root):
+            return {'error': f"Refusing to scan sensitive system directory: {root_path}"}
+        
         print(f"Scanning directory: {root}")
         self.scanned_files = []
         self.deduplicator = Deduplicator()
@@ -106,6 +160,8 @@ class ArchiveScanner:
                 if item.is_file():
                     self._process_file(item)
                 elif item.is_dir() and recursive:
+                    if not self.is_safe_scan_target(item):
+                        continue
                     self._scan_recursive(item, current_depth + 1, max_depth, recursive)
         except PermissionError as e:
             self.stats['errors'].append(f"Permission denied: {path}")
