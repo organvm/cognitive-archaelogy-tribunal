@@ -29,6 +29,47 @@ from cognitive_tribunal.outputs.triage_report import TriageReportGenerator
 
 console = Console()
 
+# Copy-pasteable example commands shown in the empty-state welcome panel and help.
+WELCOME_EXAMPLES = [
+    ("Run every module", "python main.py --all --output-dir ./output"),
+    ("Scan archives only", "python main.py --scan-archives /path/to/archives --output-dir ./output"),
+    ("Analyze personal repos", "GITHUB_TOKEN=... python main.py --personal-repos username"),
+    ("Load AI conversations", "python main.py --ai-conversations /path/to/export"),
+]
+
+
+def welcome_body() -> str:
+    """Rich-markup body for the empty-state welcome panel.
+
+    Shown when the CLI is run with no module selected: an empty invocation is
+    guidance, not a broken state, so we greet the user with copy-pasteable
+    examples instead of a bare argparse error (distills the Palette empty-state
+    PR cluster: #37, #55, #59, #61, #65, #66, #69, #74, #108, #110, #112).
+    """
+    lines = [
+        "[italic]Comprehensive digital archaeology for your archives, repos, and AI history.[/italic]",
+        "",
+        "No module was selected. Try one of these:",
+        "",
+    ]
+    for label, cmd in WELCOME_EXAMPLES:
+        lines.append(f"  [dim]# {label}[/dim]")
+        lines.append(f"  [green]{cmd}[/green]")
+        lines.append("")
+    lines.append("Run [cyan]python main.py --help[/cyan] for the full option list.")
+    return "\n".join(lines)
+
+
+def render_welcome(target: Optional[Console] = None) -> None:
+    """Print the empty-state welcome panel."""
+    (target or console).print(Panel.fit(
+        welcome_body(),
+        title="[bold blue]COGNITIVE ARCHAEOLOGY TRIBUNAL[/bold blue]",
+        border_style="blue",
+        padding=(1, 2),
+    ))
+
+
 def build_parser():
     """Construct the CLI argument parser.
 
@@ -83,7 +124,8 @@ def main():
     
     # Validate arguments
     if not (args.all or args.scan_archives or args.ai_conversations or args.personal_repos or args.org_repos or args.web_bookmarks):
-        parser.error('At least one module must be specified')
+        render_welcome()
+        return 0
     
     console.print(Panel.fit(
         "[bold blue]COGNITIVE ARCHAEOLOGY TRIBUNAL[/bold blue]\n[italic]Comprehensive Archaeological Dig Tool[/italic]",
@@ -249,4 +291,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
