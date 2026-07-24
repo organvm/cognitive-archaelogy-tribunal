@@ -48,6 +48,14 @@ class ArchiveScanner:
             '*.tmp',
             '*.swp',
         ]
+
+        # Security: Block sensitive system directories
+        self.sensitive_paths = [
+            '/etc', '/proc', '/sys', '/root', '/var/lib', '/var/run',
+            '/bin', '/sbin', '/usr/bin', '/usr/sbin',
+            'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)'
+        ]
+
         self.deduplicator = Deduplicator()
         self.scanned_files: List[Dict] = []
         self.stats = {
@@ -110,6 +118,19 @@ class ArchiveScanner:
         
         return False
     
+    def _is_sensitive_path(self, path: Path) -> bool:
+        """Check if path is a sensitive system directory."""
+        path_str = str(path)
+
+        # Check against sensitive paths
+        for sensitive in self.sensitive_paths:
+            # Check if it matches exactly or is a subdirectory
+            # We use string matching because Path.is_relative_to is Python 3.9+
+            if path_str == sensitive or path_str.startswith(os.path.join(sensitive, '')):
+                return True
+
+        return False
+
     def scan_directory(self, root_path: str, recursive: bool = True, max_depth: Optional[int] = None) -> Dict:
         """
         Scan a directory and classify all files.
@@ -129,6 +150,10 @@ class ArchiveScanner:
         
         if not root.is_dir():
             return {'error': f"Path is not a directory: {root_path}"}
+
+        # Security check
+        if self._is_sensitive_path(root):
+            return {'error': f"Security violation: Access to sensitive directory denied: {root_path}"}
         
         if not self.is_safe_scan_target(root):
             return {'error': f"Refusing to scan sensitive system directory: {root_path}"}
