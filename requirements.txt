@@ -17,7 +17,7 @@ rich>=15.0.0
 pyyaml>=6.0.3
 
 # Hashing and deduplication
-xxhash>=3.8.0
+xxhash>=3.8.1
 
 # Optional: AI conversation export (chatgpt-exporter not on PyPI, will document manual install)
 # Note: chatgpt-exporter needs to be installed manually from GitHub
